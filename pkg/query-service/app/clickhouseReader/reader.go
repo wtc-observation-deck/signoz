@@ -756,7 +756,7 @@ func (r *ClickHouseReader) GetServices(ctx context.Context, queryParams *model.G
 		return nil, &model.ApiError{Typ: model.ErrorExec, Err: ErrNoIndexTable}
 	}
 
-	topLevelOps, allTopLevelOps, apiErr := r.GetTopLevelOperations(ctx, skipConfig, *queryParams.Start, *queryParams.End)
+	topLevelOps, _, apiErr := r.GetTopLevelOperations(ctx, skipConfig, *queryParams.Start, *queryParams.End)
 	if apiErr != nil {
 		return nil, apiErr
 	}
@@ -776,11 +776,8 @@ func (r *ClickHouseReader) GetServices(ctx context.Context, queryParams *model.G
 			var serviceItem model.ServiceItem
 			var numErrors uint64
 
-			// Even if the total number of operations within the time range is less and the all
-			// the top level operations are high, we want to warn to let user know the issue
-			// with the instrumentation
 			serviceItem.DataWarning = model.DataWarning{
-				TopLevelOps: (*allTopLevelOps)[svc],
+				TopLevelOps: ops,
 			}
 
 			// default max_query_size = 262144
@@ -788,6 +785,10 @@ func (r *ClickHouseReader) GetServices(ctx context.Context, queryParams *model.G
 			// We can have 262144/50 = 5242 items in the `ops` array
 			// Although we have make it as big as 5k, We cap the number of items
 			// in the `ops` array to 1500
+
+			if len(ops) > 1500 {
+				zap.L().Warn("too many top level operations", zap.String("serviceName", svc), zap.Int("numOps", len(ops)))
+			}
 
 			ops = ops[:int(math.Min(1500, float64(len(ops))))]
 
