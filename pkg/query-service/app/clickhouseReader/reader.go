@@ -786,7 +786,7 @@ func (r *ClickHouseReader) GetServices(ctx context.Context, queryParams *model.G
 			// Although we have make it as big as 5k, We cap the number of items
 			// in the `ops` array to 1500
 
-			if len(ops) > 1500 {
+			if len(ops) > 500 {
 				zap.L().Warn("too many top level operations", zap.String("serviceName", svc), zap.Int("numOps", len(ops)))
 			}
 
