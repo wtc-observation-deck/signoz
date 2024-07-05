@@ -3,9 +3,9 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import './AppLayout.styles.scss';
 
+import * as Sentry from '@sentry/react';
 import { Flex } from 'antd';
 import getLocalStorageKey from 'api/browser/localstorage/get';
-import getDynamicConfigs from 'api/dynamicConfigs/getDynamicConfigs';
 import getUserLatestVersion from 'api/user/getLatestVersion';
 import getUserVersion from 'api/user/getVersion';
 import cx from 'classnames';
@@ -27,7 +27,6 @@ import {
 	useRef,
 	useState,
 } from 'react';
-import { ErrorBoundary } from 'react-error-boundary';
 import { Helmet } from 'react-helmet-async';
 import { useTranslation } from 'react-i18next';
 import { useQueries } from 'react-query';
@@ -38,7 +37,6 @@ import { sideBarCollapse } from 'store/actions';
 import { AppState } from 'store/reducers';
 import AppActions from 'types/actions';
 import {
-	UPDATE_CONFIGS,
 	UPDATE_CURRENT_ERROR,
 	UPDATE_CURRENT_VERSION,
 	UPDATE_LATEST_VERSION,
@@ -66,11 +64,7 @@ function AppLayout(props: AppLayoutProps): JSX.Element {
 	const { pathname } = useLocation();
 	const { t } = useTranslation(['titles']);
 
-	const [
-		getUserVersionResponse,
-		getUserLatestVersionResponse,
-		getDynamicConfigsResponse,
-	] = useQueries([
+	const [getUserVersionResponse, getUserLatestVersionResponse] = useQueries([
 		{
 			queryFn: getUserVersion,
 			queryKey: ['getUserVersion', user?.accessJwt],
@@ -80,10 +74,6 @@ function AppLayout(props: AppLayoutProps): JSX.Element {
 			queryFn: getUserLatestVersion,
 			queryKey: ['getUserLatestVersion', user?.accessJwt],
 			enabled: isLoggedIn,
-		},
-		{
-			queryFn: getDynamicConfigs,
-			queryKey: ['getDynamicConfigs', user?.accessJwt],
 		},
 	]);
 
@@ -95,15 +85,7 @@ function AppLayout(props: AppLayoutProps): JSX.Element {
 		if (getUserVersionResponse.status === 'idle' && isLoggedIn) {
 			getUserVersionResponse.refetch();
 		}
-		if (getDynamicConfigsResponse.status === 'idle') {
-			getDynamicConfigsResponse.refetch();
-		}
-	}, [
-		getUserLatestVersionResponse,
-		getUserVersionResponse,
-		isLoggedIn,
-		getDynamicConfigsResponse,
-	]);
+	}, [getUserLatestVersionResponse, getUserVersionResponse, isLoggedIn]);
 
 	const { children } = props;
 
@@ -111,7 +93,6 @@ function AppLayout(props: AppLayoutProps): JSX.Element {
 
 	const latestCurrentCounter = useRef(0);
 	const latestVersionCounter = useRef(0);
-	const latestConfigCounter = useRef(0);
 
 	const { notifications } = useNotifications();
 
@@ -189,23 +170,6 @@ function AppLayout(props: AppLayoutProps): JSX.Element {
 				},
 			});
 		}
-
-		if (
-			getDynamicConfigsResponse.isFetched &&
-			getDynamicConfigsResponse.isSuccess &&
-			getDynamicConfigsResponse.data &&
-			getDynamicConfigsResponse.data.payload &&
-			latestConfigCounter.current === 0
-		) {
-			latestConfigCounter.current = 1;
-
-			dispatch({
-				type: UPDATE_CONFIGS,
-				payload: {
-					configs: getDynamicConfigsResponse.data.payload,
-				},
-			});
-		}
 	}, [
 		dispatch,
 		isLoggedIn,
@@ -220,9 +184,6 @@ function AppLayout(props: AppLayoutProps): JSX.Element {
 		getUserLatestVersionResponse.isFetched,
 		getUserVersionResponse.isFetched,
 		getUserLatestVersionResponse.isSuccess,
-		getDynamicConfigsResponse.data,
-		getDynamicConfigsResponse.isFetched,
-		getDynamicConfigsResponse.isSuccess,
 		notifications,
 	]);
 
@@ -236,7 +197,8 @@ function AppLayout(props: AppLayoutProps): JSX.Element {
 		pathname === ROUTES.GET_STARTED_APPLICATION_MONITORING ||
 		pathname === ROUTES.GET_STARTED_INFRASTRUCTURE_MONITORING ||
 		pathname === ROUTES.GET_STARTED_LOGS_MANAGEMENT ||
-		pathname === ROUTES.GET_STARTED_AWS_MONITORING;
+		pathname === ROUTES.GET_STARTED_AWS_MONITORING ||
+		pathname === ROUTES.GET_STARTED_AZURE_MONITORING;
 
 	const [showTrialExpiryBanner, setShowTrialExpiryBanner] = useState(false);
 
@@ -342,7 +304,7 @@ function AppLayout(props: AppLayoutProps): JSX.Element {
 					/>
 				)}
 				<div className={cx('app-content', collapsed ? 'collapsed' : '')}>
-					<ErrorBoundary FallbackComponent={ErrorBoundaryFallback}>
+					<Sentry.ErrorBoundary fallback={<ErrorBoundaryFallback />}>
 						<LayoutContent>
 							<ChildrenContainer
 								style={{
@@ -360,7 +322,7 @@ function AppLayout(props: AppLayoutProps): JSX.Element {
 								{children}
 							</ChildrenContainer>
 						</LayoutContent>
-					</ErrorBoundary>
+					</Sentry.ErrorBoundary>
 				</div>
 			</Flex>
 		</Layout>
