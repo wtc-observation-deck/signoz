@@ -43,6 +43,12 @@ receivers:
       disk: {}
       filesystem: {}
       network: {}
+  awsfirehose:
+    endpoint: 0.0.0.0:1443
+    record_type: cwmetrics
+    tls:
+      cert_file: /etc/firehose.crt
+      key_file: /etc/firehose.key
   prometheus:
     config:
       global:
@@ -55,7 +61,6 @@ receivers:
               - localhost:8888
             labels:
               job_name: otel-collector
-
 
 processors:
   batch:
@@ -151,7 +156,7 @@ service:
       processors: [signozspanmetrics/cumulative, signozspanmetrics/delta, batch]
       exporters: [clickhousetraces]
     metrics:
-      receivers: [otlp]
+      receivers: [otlp, awsfirehose] 
       processors: [batch]
       exporters: [clickhousemetricswrite]
     metrics/generic:
